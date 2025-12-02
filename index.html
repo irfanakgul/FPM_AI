@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FPM - Home</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: system-ui;
+        background: #f4f6f8;
+    }
+
+    /* HEADER */
+    header {
+        height: 60px;
+        background: #0275d8;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+    }
+
+    #headerUserInfo {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-right: 20px;
+    }
+
+    /* SIDEBAR */
+    #sidebar {
+        width: 200px;
+        background: white;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        border-right: 1px solid #ddd;
+        padding-top: 20px;
+    }
+
+    #sidebar a {
+        display: block;
+        padding: 12px 16px;
+        color: #333;
+        text-decoration: none;
+    }
+
+    #sidebar a:hover {
+        background: #e5e5e5;
+    }
+
+    /* MAIN */
+    #main {
+        margin-left: 200px;
+        padding: 20px;
+        min-height: calc(100vh - 120px);
+    }
+
+    /* FOOTER */
+    .app-footer {
+        text-align: center;
+        padding: 15px;
+        color: #777;
+        background: #f0f0f0;
+        border-top: 1px solid #ddd;
+        position: fixed;
+        bottom: 0;
+        left: 200px;
+        right: 0;
+    }
+
+    /* BUTTONS */
+    button {
+        padding: 8px 14px;
+        margin-left: 10px;
+        cursor: pointer;
+    }
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="/docs/fpm_logo.jpg" 
+             alt="Logo"
+             style="height:34px; width:auto; border-radius:4px;" />
+
+        <strong>FPM AI Model</strong>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:20px;">
+        <div id="headerUserInfo" style="display:none;"></div>
+
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" style="display:none;">Logout</button>
+    </div>
+</header>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+    <a href="/index.html">Home</a>
+    <a href="/pages/results.html">Results</a>
+    <a href="/pages/stats.html">Statistics</a>
+    <a href="/pages/weekly.html">Weekly Games</a>
+    <a href="/pages/about.html">About</a>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main">
+    <h2>Welcome to FPM</h2>
+    <p>Please use the left navigation menu.</p>
+</div>
+
+<!-- FOOTER -->
+<footer class="app-footer">
+    © 2025 FPM Web App
+</footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const headerUserInfo = document.getElementById("headerUserInfo");
+
+    const navResults = document.getElementById("navResults");
+    const navStats = document.getElementById("navStats");
+    const navWeekly = document.getElementById("navWeekly");
+
+    let timerInterval = null;
+
+    let currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+
+    /* ---------- TIMER ---------- */
+    function startTimer() {
+        let seconds = Number(sessionStorage.getItem("activeSeconds") || 0);
+
+        timerInterval = setInterval(() => {
+            seconds++;
+            sessionStorage.setItem("activeSeconds", seconds);
+
+            let m = Math.floor(seconds / 60);
+            let s = seconds % 60;
+
+            const timerSpan = document.getElementById("activeTimer");
+            if (timerSpan) timerSpan.textContent = `Active: ${m}m ${s}s`;
+        }, 1000);
+    }
+
+    /* ---------- UPDATE UI ---------- */
+    function updateUI() {
+        currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+
+        if (!currentUser) {
+            // LOGGED OUT
+            loginBtn.style.display = "inline-block";
+            logoutBtn.style.display = "none";
+            headerUserInfo.style.display = "none";
+
+            navResults.style.display = "none";
+            navStats.style.display = "none";
+            navWeekly.style.display = "none";
+
+            clearInterval(timerInterval);
+            sessionStorage.removeItem("activeSeconds");
+        }
+        else {
+            // LOGGED IN
+            loginBtn.style.display = "none";
+            logoutBtn.style.display = "inline-block";
+            headerUserInfo.style.display = "block";
+
+            headerUserInfo.innerHTML = `
+                User: <strong>${currentUser.username}</strong> 
+                (Type: ${currentUser.user_type}) |
+                <span id="activeTimer">Active: 0m 0s</span>
+            `;
+
+            startTimer();
+
+            /* Role-based menu visibility */
+            if (currentUser.user_type === "client") {
+                navResults.style.display = "none";
+                navStats.style.display = "none";
+                navWeekly.style.display = "block";   // client can access weekly
+            }
+            else if (currentUser.user_type === "read") {
+                navResults.style.display = "block";
+                navStats.style.display = "block"; 
+                navWeekly.style.display = "none";
+            }
+            else {
+                navResults.style.display = "block";
+                navStats.style.display = "block";
+                navWeekly.style.display = "block";
+            }
+        }
+    }
+
+    /* ---------- LOGIN ---------- */
+    loginBtn.addEventListener("click", () => {
+        window.location.href = "/pages/login.html";
+    });
+
+    /* ---------- LOGOUT ---------- */
+    logoutBtn.addEventListener("click", () => {
+        sessionStorage.removeItem("currentUser");
+        sessionStorage.removeItem("activeSeconds");
+        clearInterval(timerInterval);
+
+        updateUI();
+        window.location.href = "/index.html";
+    });
+
+    /* INITIAL RUN */
+    updateUI();
+});
+</script>
+
+</body>
+</html>

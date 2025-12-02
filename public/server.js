@@ -36,31 +36,45 @@ app.get("/getUsers", async (req, res) => {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: "v4", auth: client });
 
-        // INFO tabından tüm verileri al
+        const USER_SHEET_ID = "11FtVunRO13DrIRGzUmvEmA4Z15FfVSBuFlEQswj_cpo";
+        const TAB = "info";
+
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: USER_SHEET_ID,
-            range: `${USER_TAB}!A:Z`,
+            range: `${TAB}`,
         });
 
-        const rows = response.data.values;
-
-        if (!rows || rows.length < 2) {
-            return res.json({ error: "No user data" });
+        const rows = response.data.values || [];
+        if (rows.length < 2) {
+            return res.json([]);
         }
 
-        const headers = rows[0];
+        const headers = rows[0];       // Read dynamic headers
         const dataRows = rows.slice(1);
 
-        const users = dataRows.map(r => {
-            const obj = {};
-            headers.forEach((col, i) => {
-                obj[col.trim()] = (r[i] || "").trim();
-            });
-            return obj;
-        });
+        const getIndex = (name) => headers.indexOf(name);
+
+        const idxUsername   = getIndex("USERNAME");
+        const idxPassword   = getIndex("PASSWORD");
+        const idxUserType   = getIndex("USER_TYPE");
+        const idxVerified   = getIndex("IS_VERIFIED");
+        const idxClientId   = getIndex("CLIENT_ID");
+        const idxName       = getIndex("NAME");
+        const idxBirthyear  = getIndex("BIRTHYEAR");
+        const idxComment    = getIndex("COMMENT");
+
+        const users = dataRows.map(r => ({
+            username:   r[idxUsername]   || "",
+            password:   r[idxPassword]   || "",
+            user_type:  r[idxUserType]   || "",
+            is_verified: r[idxVerified]  || "",
+            client_id:  r[idxClientId]   || "",
+            name:       r[idxName]       || "",
+            birthyear:  r[idxBirthyear]  || "",
+            comment:    r[idxComment]    || "",
+        }));
 
         res.json(users);
-
     } catch (err) {
         console.error("User loading error:", err);
         res.status(500).json({ error: "Cannot load users" });

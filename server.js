@@ -20,65 +20,52 @@ console.log("Static files served from:", path.join(__dirname));
 // GOOGLE AUTH
 // =====================================
 const auth = new google.auth.GoogleAuth({
-    keyFile: "credentials.json",
+    credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
+
 
 // =====================================
 // LOGIN SYSTEM – LOAD USERS
 // =====================================
 const USER_SHEET_ID = "11FtVunRO13DrIRGzUmvEmA4Z15FfVSBuFlEQswj_cpo";
 const USER_TAB = "info";
-
 app.get("/getUsers", async (req, res) => {
     try {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: "v4", auth: client });
 
-        const USER_SHEET_ID = "11FtVunRO13DrIRGzUmvEmA4Z15FfVSBuFlEQswj_cpo";
-        const TAB = "info";
-
+        // INFO tabından tüm verileri al
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: USER_SHEET_ID,
-            range: `${TAB}`,
+            range: `${USER_TAB}!A:Z`,
         });
 
-        const rows = response.data.values || [];
-        if (rows.length < 2) {
-            return res.json([]);
+        const rows = response.data.values;
+
+        if (!rows || rows.length < 2) {
+            return res.json({ error: "No user data" });
         }
 
-        const headers = rows[0];       // Read dynamic headers
+        const headers = rows[0];
         const dataRows = rows.slice(1);
 
-        const getIndex = (name) => headers.indexOf(name);
-
-        const idxUsername   = getIndex("USERNAME");
-        const idxPassword   = getIndex("PASSWORD");
-        const idxUserType   = getIndex("USER_TYPE");
-        const idxVerified   = getIndex("IS_VERIFIED");
-        const idxClientId   = getIndex("CLIENT_ID");
-        const idxName       = getIndex("NAME");
-        const idxBirthyear  = getIndex("BIRTHYEAR");
-        const idxComment    = getIndex("COMMENT");
-
-        const users = dataRows.map(r => ({
-            username:   r[idxUsername]   || "",
-            password:   r[idxPassword]   || "",
-            user_type:  r[idxUserType]   || "",
-            is_verified: r[idxVerified]  || "",
-            client_id:  r[idxClientId]   || "",
-            name:       r[idxName]       || "",
-            birthyear:  r[idxBirthyear]  || "",
-            comment:    r[idxComment]    || "",
-        }));
+        const users = dataRows.map(r => {
+            const obj = {};
+            headers.forEach((col, i) => {
+                obj[col.trim()] = (r[i] || "").trim();
+            });
+            return obj;
+        });
 
         res.json(users);
+
     } catch (err) {
         console.error("User loading error:", err);
         res.status(500).json({ error: "Cannot load users" });
     }
 });
+
 
 // =====================================
 // GET ALL SHEET NAMES

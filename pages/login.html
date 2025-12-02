@@ -177,12 +177,18 @@ async function login() {
         const res = await fetch("/getUsers");
         const users = await res.json();
 
-        // --- Find matching user ---
-        const found = users.find(u => {
-            const uname = (u.USERNAME || u.username || "").trim();
-            const pass = (u.PASSWORD || u.password || "").trim();
-            return uname === username && pass === password;
-        });
+        console.log("USERS RESPONSE:", users); // <-- Debug
+
+        if (!Array.isArray(users)) {
+            msg.className = "errorMsg";
+            msg.textContent = "Server error: Invalid user data format.";
+            return;
+        }
+
+        // Correct search
+        const found = users.find(u =>
+            u.USERNAME === username && u.PASSWORD === password
+        );
 
         if (!found) {
             msg.className = "errorMsg";
@@ -190,15 +196,10 @@ async function login() {
             return;
         }
 
-        // --- Verified Check ---
-        const verified = (found.IS_VERIFIED || found.is_verified || "")
-            .toString()
-            .trim()
-            .toUpperCase();
-
-        if (verified !== "TRUE") {
+        // VERIFIED CHECK
+        if (!found.IS_VERIFIED || found.IS_VERIFIED.toUpperCase() !== "TRUE") {
             msg.className = "errorMsg";
-            msg.textContent = "Your application has not been approved yet.";
+            msg.textContent = "Your application has not been approved.";
             return;
         }
 
@@ -216,6 +217,7 @@ async function login() {
         msg.textContent = "Error: " + err.message;
     }
 }
+
 </script>
 
 </body>

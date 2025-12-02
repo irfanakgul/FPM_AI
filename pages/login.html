@@ -157,7 +157,6 @@
 <footer class="app-footer">
     © 2025 FPM Web App
 </footer>
-
 <script>
 async function login() {
     const username = document.getElementById("username").value.trim();
@@ -177,17 +176,12 @@ async function login() {
         const res = await fetch("/getUsers");
         const users = await res.json();
 
-        console.log("USERS RESPONSE:", users); // <-- Debug
+        console.log("Users loaded:", users);
 
-        if (!Array.isArray(users)) {
-            msg.className = "errorMsg";
-            msg.textContent = "Server error: Invalid user data format.";
-            return;
-        }
-
-        // Correct search
+        // 🔥 DOĞRU KULLANICI ARAMA
         const found = users.find(u =>
-            u.USERNAME === username && u.PASSWORD === password
+            u.USERNAME?.toLowerCase() === username.toLowerCase() &&
+            u.PASSWORD === password
         );
 
         if (!found) {
@@ -196,17 +190,21 @@ async function login() {
             return;
         }
 
-        // VERIFIED CHECK
-        if (!found.IS_VERIFIED || found.IS_VERIFIED.toUpperCase() !== "TRUE") {
+        // 🔥 "IS_VERIFIED" doğrulaması
+        const verified = (found.IS_VERIFIED || "").toString().toUpperCase();
+
+        if (verified !== "TRUE") {
             msg.className = "errorMsg";
-            msg.textContent = "Your application has not been approved.";
+            msg.textContent = "Your application has not been approved yet.";
             return;
         }
 
         msg.className = "successMsg";
         msg.textContent = "Login successful! Redirecting...";
 
+        // 🔥 SESSION KAYDET
         sessionStorage.setItem("currentUser", JSON.stringify(found));
+        sessionStorage.removeItem("activeSeconds");
 
         setTimeout(() => {
             window.location.href = "/index.html";
@@ -217,8 +215,8 @@ async function login() {
         msg.textContent = "Error: " + err.message;
     }
 }
-
 </script>
+
 
 </body>
 </html>

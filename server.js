@@ -12,7 +12,8 @@ app.use(cors());
 app.use(express.json());
 
 // STATIC FILES (serves index.html, pages/, js/, etc.)
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, "public")));
+
 
 console.log("Static files served from:", path.join(__dirname));
 

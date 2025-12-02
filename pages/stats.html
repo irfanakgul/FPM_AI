@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FPM - Statistics</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: system-ui;
+        background: #f4f6f8;
+    }
+
+    header {
+        height: 60px;
+        background: #0275d8;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+    }
+
+    #sidebar {
+        width: 200px;
+        background: white;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        border-right: 1px solid #ddd;
+        padding-top: 20px;
+    }
+
+    #sidebar a {
+        display: block;
+        padding: 12px 16px;
+        color: #333;
+        text-decoration: none;
+    }
+
+    #sidebar .active {
+        background: #0275d8;
+        color: white;
+    }
+
+    #main {
+        margin-left: 200px;
+        margin-top: 60px;
+        padding: 20px;
+        padding-bottom: 80px;
+    }
+
+    footer {
+        position: fixed;
+        bottom: 0;
+        left: 200px;
+        right: 0;
+        height: 40px;
+        background: #f0f0f0;
+        border-top: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #777;
+    }
+
+    #permissionWarning {
+        display: none;
+        margin-top: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #b30000;
+        background: #ffe5e5;
+        padding: 15px;
+        border: 1px solid #ffb2b2;
+        border-radius: 6px;
+    }
+
+    /* Chart containers (NEW SMALLER SIZE) */
+    .chart-box {
+        max-width: 450px;
+        background: white;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        margin-top: 10px;
+    }
+
+    #overallChart {
+        height: 160px !important;
+    }
+
+    #monthlyChart {
+        height: 200px !important;
+    }
+
+    /* Monthly table beautified */
+    #monthlyTable {
+        margin-top: 20px;
+        border-collapse: collapse;
+        width: 100%;
+        background: white;
+    }
+
+    #monthlyTable th {
+        background: #0275d8;
+        color: white;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    #monthlyTable td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-size: 14px;
+        text-align: center;
+    }
+
+    #monthlyTable tr:nth-child(even) {
+        background: #f2f8ff;
+    }
+
+    #monthlyTable tr:hover {
+        background: #e6f0ff;
+    }
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+</head>
+<body>
+
+<header>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="/docs/fpm_logo.jpg" 
+             alt="Logo"
+             style="height:34px; width:auto; border-radius:4px;" />
+
+        <strong>FPM AI Model</strong>
+    </div>
+    <div id="sheetIdLabel"></div>
+    <div style="display:flex;align-items:center;gap:20px;">
+        <div id="headerUserInfo" style="display:none;"></div>
+        <button id="logoutBtn">Logout</button>
+    </div>
+</header>
+
+<div id="sidebar">
+    <a href="/index.html">Home</a>
+    <a href="/pages/results.html">Results</a>
+    <a href="/pages/stats.html">Statistics</a>
+    <a href="/pages/weekly.html">Weekly Games</a>
+    <a href="/pages/about.html">About</a>
+</div>
+
+<div id="main">
+
+    <div id="permissionWarning"></div>
+
+    <div id="statsContent">
+
+        <h2>Statistics</h2>
+
+        <div>
+            <label>Sheet:
+                <select id="sheetSelect">
+                    <option value="FINAL_FOCUS_SELECTION">FINAL</option>
+                    <option value="LOG_FOCUS_MODEL_A">ALL</option>
+                    <option value="CUSTOMER">CUSTOMER</option>
+
+                </select>
+            </label>
+            <button id="loadBtn">Load</button>
+        </div>
+
+        <h3 style="margin-top:20px;">Overall (W / D / L)</h3>
+        <div class="chart-box">
+            <canvas id="overallChart"></canvas>
+        </div>
+
+        <h3 style="margin-top:20px;">Monthly Trend</h3>
+        <div class="chart-box" style="max-width:900px;">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+
+        <table id="monthlyTable">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>W (%)</th>
+                    <th>D (%)</th>
+                    <th>L (%)</th>
+                    <th>W Count</th>
+                    <th>D Count</th>
+                    <th>L Count</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+    </div>
+</div>
+
+<footer>© 2025 FPM Web App</footer>
+
+<script>
+/* SESSION CHECK */
+/* =====================================
+   USER SESSION + TIMER
+===================================== */
+const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+
+if (!currentUser) {
+    window.location.href = "/pages/login.html";
+}
+
+/* === CLIENT: Sayfa açılır ama içerik kapalı === */
+if (currentUser.user_type === "client") {
+    document.getElementById("main").innerHTML = `
+        <h2>Access Denied</h2>
+        <div style="
+            margin-top:20px;
+            padding:15px;
+            border:1px solid #cc0000;
+            background:#ffe5e5;
+            color:#b00000;
+            font-size:18px;
+            font-weight:600;">
+            You do not have permission to access this page.
+        </div>
+    `;
+}
+
+/* === HEADER (her rolde görünür) === */
+document.getElementById("headerUserInfo").style.display = "block";
+document.getElementById("headerUserInfo").innerHTML =
+`User: <strong>${currentUser.username}</strong> 
+(Type: ${currentUser.user_type}) |
+<span id="activeTimer">Active: 0m 0s</span>`;
+
+/* === LOGOUT === */
+document.getElementById("logoutBtn").onclick = () => {
+    sessionStorage.removeItem("currentUser");
+    sessionStorage.removeItem("activeSeconds");
+    clearInterval(window.globalTimer);
+    window.location.href = "/index.html";
+};
+
+
+(function startTimer(){
+    let s = Number(sessionStorage.getItem("activeSeconds")||0);
+    window.globalTimer = setInterval(()=>{
+        s++; sessionStorage.setItem("activeSeconds",s);
+        document.getElementById("activeTimer").textContent =
+            `Active: ${Math.floor(s/60)}m ${s%60}s`;
+    },1000);
+})();
+
+/* PERMISSION */
+if (!["admin","co-admin"].includes(currentUser.user_type)) {
+    document.getElementById("statsContent").style.display="none";
+    const warn=document.getElementById("permissionWarning");
+    warn.style.display="block";
+    warn.textContent="You do not have permission to access the Statistics page.";
+    setTimeout(()=>window.location.href="/index.html",1500);
+}
+
+/* STATISTICS LOGIC */
+const sheetId="1c_0Maup2VkR1yg-RjkCbVS1e7d_ng0wgMGY43nFPn3U";
+document.getElementById("sheetIdLabel").textContent=`Sheet ID: ${sheetId}`;
+// Only admin can see sheet ID
+if (currentUser.user_type !== "admin") {
+    document.getElementById("sheetIdLabel").style.display = "none";
+}
+
+let rows=[];
+let overallChart=null;
+let monthlyChart=null;
+
+document.getElementById("loadBtn").onclick=loadStats;
+
+async function loadStats(){
+    const sheet=document.getElementById("sheetSelect").value;
+    const r=await fetch("/api/load-sheet",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json"},
+        body:JSON.stringify({sheetId,sheetName:sheet})
+    });
+    const j=await r.json();
+    rows=j.data;
+    compute();
+}
+
+function compute(){
+    const valid=rows.filter(r=>["W","D","L"].includes(r.STATUS));
+    const t=valid.length;
+    const W=valid.filter(r=>r.STATUS==="W").length;
+    const D=valid.filter(r=>r.STATUS==="D").length;
+    const L=valid.filter(r=>r.STATUS==="L").length;
+
+    const Wp=(W/t*100).toFixed(1);
+    const Dp=(D/t*100).toFixed(1);
+    const Lp=(L/t*100).toFixed(1);
+
+    drawOverall(W,D,L,Wp,Dp,Lp);
+    computeMonthly(valid);
+}
+
+/* SMALLER OVERALL BAR CHART */
+function drawOverall(W,D,L,Wp,Dp,Lp){
+
+    if(overallChart) overallChart.destroy();
+    const ctx=document.getElementById("overallChart").getContext("2d");
+
+    overallChart=new Chart(ctx,{
+        type:"bar",
+        data:{
+            labels:["W","D","L"],
+            datasets:[{
+                data:[W,D,L],
+                backgroundColor:["green","orange","red"]
+            }]
+        },
+        plugins:[ChartDataLabels],
+        options:{
+            plugins:{
+                datalabels:{
+                    anchor:"end",
+                    align:"end",
+                    color:"#000",
+                    font:{size:12,weight:"bold"},
+                    formatter:(v,ctx)=>
+                        ctx.dataIndex===0?Wp+"%":
+                        ctx.dataIndex===1?Dp+"%":Lp+"%"
+                },
+                tooltip:{
+                    callbacks:{
+                        label:(c)=>`${c.raw} matches`
+                    }
+                }
+            },
+            scales:{ y:{beginAtZero:true}}
+        }
+    });
+}
+
+function computeMonthly(valid){
+    const map={};
+
+    valid.forEach(r=>{
+        if(!r.MacTarihi) return;
+        const [d,m,y]=r.MacTarihi.split(".");
+        const key=`${y}-${m}`;
+        if(!map[key]) map[key]={W:0,D:0,L:0,total:0};
+        map[key][r.STATUS]++;
+        map[key].total++;
+    });
+
+    const months=Object.keys(map).sort();
+    const Wp=months.map(m=>(map[m].W/map[m].total*100).toFixed(1));
+    const Dp=months.map(m=>(map[m].D/map[m].total*100).toFixed(1));
+    const Lp=months.map(m=>(map[m].L/map[m].total*100).toFixed(1));
+
+    drawMonthly(months,Wp,Dp,Lp,map);
+    fillMonthlyTable(months,map);
+}
+
+/* SMALLER MONTHLY LINE CHART */
+function drawMonthly(months,Wp,Dp,Lp,map){
+
+    if(monthlyChart) monthlyChart.destroy();
+    const ctx=document.getElementById("monthlyChart").getContext("2d");
+
+    monthlyChart=new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:months,
+            datasets:[
+                {label:"W %",data:Wp,borderColor:"green",tension:0.3},
+                {label:"D %",data:Dp,borderColor:"orange",tension:0.3},
+                {label:"L %",data:Lp,borderColor:"red",tension:0.3}
+            ]
+        },
+        plugins:[ChartDataLabels],
+        options:{
+            plugins:{
+                datalabels:{
+                    color:"#000",
+                    font:{size:11,weight:"bold"},
+                    formatter:(v)=>v+"%"
+                },
+                tooltip:{
+                    callbacks:{
+                        label:(ctx)=>{
+                            const m=ctx.label;
+                            const cat=ctx.dataset.label.charAt(0);
+                            return `${ctx.raw}% (${map[m][cat]} matches)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* BEAUTIFIED MONTHLY TABLE */
+function fillMonthlyTable(months,map){
+    const tb=document.querySelector("#monthlyTable tbody");
+    tb.innerHTML="";
+
+    months.forEach(m=>{
+        const r=map[m];
+        tb.innerHTML+=`
+            <tr>
+                <td>${m}</td>
+                <td>${(r.W/r.total*100).toFixed(1)}%</td>
+                <td>${(r.D/r.total*100).toFixed(1)}%</td>
+                <td>${(r.L/r.total*100).toFixed(1)}%</td>
+                <td>${r.W}</td>
+                <td>${r.D}</td>
+                <td>${r.L}</td>
+            </tr>`;
+    });
+}
+</script>
+
+</body>
+</html>

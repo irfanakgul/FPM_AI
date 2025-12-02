@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login</title>
+
+<style>
+    body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: linear-gradient(135deg, #eaf3ff, #f4f6f8);
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 40px;
+    }
+
+    #loginLogo {
+        width: 110px;
+        border-radius: 18px;
+        margin-bottom: 18px;
+        margin-top: 5px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    #box {
+        background: white;
+        padding: 28px 26px;
+        width: 330px;
+        border-radius: 18px;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.15);
+        backdrop-filter: blur(6px);
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        animation: fadeIn 0.45s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    h3 {
+        margin: 0 0 5px 0;
+        font-weight: 600;
+        color: #2d2d2d;
+    }
+
+    input {
+        width: 90%;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1.5px solid #d0d7df;
+        background: #f8fafc;
+        outline: none;
+        font-size: 14px;
+        text-align: center;
+        margin: 0 auto;
+        transition: 0.2s;
+    }
+
+    input:focus {
+        border-color: #0275d8;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2,117,216,0.12);
+    }
+
+    button {
+        width: 90%;
+        padding: 12px;
+        background: #0275d8;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        margin-top: 5px;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        background: #0267c0;
+    }
+
+    /* NEW: Return Home button */
+    #homeBtn {
+        margin-top: 12px;
+        width: 90%;
+        padding: 10px;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: 0.2s;
+    }
+
+    #homeBtn:hover {
+        background: #5a636a;
+    }
+
+    #msg {
+        font-size: 14px;
+        min-height: 18px;
+    }
+
+    .successMsg { color: #0a7a0a; font-weight: 600; }
+    .errorMsg { color: #b30000; font-weight: 600; }
+
+    .app-footer {
+        text-align: center;
+        padding: 12px;
+        color: #777;
+        background: #f0f0f0;
+        border-top: 1px solid #ddd;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        font-size: 14px;
+    }
+</style>
+
+</head>
+
+<body>
+
+<img id="loginLogo" src="/docs/fpm_logo.jpg" alt="FPM Logo">
+
+<div id="box">
+    <h3>Sign In</h3>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+
+    <button onclick="login()">Log In</button>
+    <button id="homeBtn" onclick="window.location.href='/index.html'">Return to Home</button>
+
+    <div id="msg"></div>
+</div>
+
+<div style="margin-top:10px;">
+    <a href="/pages/create_account.html" style="color:#0275d8;font-size:14px;">
+        Create Account
+    </a>
+</div>
+
+<footer class="app-footer">
+    © 2025 FPM Web App
+</footer>
+
+<script>
+async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const msg = document.getElementById("msg");
+
+    msg.className = "";
+    msg.textContent = "";
+
+    if (!username || !password) {
+        msg.className = "errorMsg";
+        msg.textContent = "Please enter username and password.";
+        return;
+    }
+
+    try {
+        const res = await fetch("/getUsers");
+        const users = await res.json();
+
+        // --- Find matching user ---
+        const found = users.find(u => {
+            const uname = (u.USERNAME || u.username || "").trim();
+            const pass = (u.PASSWORD || u.password || "").trim();
+            return uname === username && pass === password;
+        });
+
+        if (!found) {
+            msg.className = "errorMsg";
+            msg.textContent = "Invalid username or password.";
+            return;
+        }
+
+        // --- Verified Check ---
+        const verified = (found.IS_VERIFIED || found.is_verified || "")
+            .toString()
+            .trim()
+            .toUpperCase();
+
+        if (verified !== "TRUE") {
+            msg.className = "errorMsg";
+            msg.textContent = "Your application has not been approved yet.";
+            return;
+        }
+
+        msg.className = "successMsg";
+        msg.textContent = "Login successful! Redirecting...";
+
+        sessionStorage.setItem("currentUser", JSON.stringify(found));
+
+        setTimeout(() => {
+            window.location.href = "/index.html";
+        }, 1000);
+
+    } catch (err) {
+        msg.className = "errorMsg";
+        msg.textContent = "Error: " + err.message;
+    }
+}
+</script>
+
+</body>
+</html>

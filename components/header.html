@@ -1,0 +1,31 @@
+<header class="app-header">
+  <div class="left">
+    <span id="currentUserName"></span>
+    (<span id="currentUserType"></span>)
+    &nbsp;|&nbsp;
+    <span id="timer">Active: 0m 0s</span>
+  </div>
+
+  <button id="headerLogoutBtn">Logout</button>
+</header>
+
+<style>
+  .app-header {
+    height: 60px;
+    background: #0275d8;
+    color: white;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+
+  .app-header button {
+    padding: 6px 12px;
+    background:white;
+    color:#0275d8;
+    border: none;
+    border-radius:4px;
+    cursor: pointer;
+  }
+</style>

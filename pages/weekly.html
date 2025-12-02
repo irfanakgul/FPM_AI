@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Games</title>
+
+<!-- XLSX (Excel Export) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+    body {
+        margin: 0;
+        font-family: system-ui;
+        background: #f4f6f8;
+    }
+
+    /* HEADER */
+    header {
+        height: 60px;
+        background: #0275d8;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+    }
+
+    #main {
+        margin-left: 200px;
+        margin-top: 60px;
+        padding: 20px;
+        padding-bottom: 80px;
+    }
+
+    /* SIDEBAR */
+    #sidebar {
+        width: 200px;
+        background: white;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        border-right: 1px solid #ddd;
+        padding-top: 20px;
+    }
+
+    #sidebar a {
+        display: block;
+        padding: 12px 16px;
+        color: #333;
+        text-decoration: none;
+    }
+
+    #sidebar a:hover {
+        background: #e5e5e5;
+    }
+
+    /* FOOTER */
+    footer {
+        position: fixed;
+        bottom: 0;
+        left: 200px;
+        right: 0;
+        height: 40px;
+        background: #f0f0f0;
+        border-top: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #777;
+        font-size: 14px;
+    }
+
+    #status.success { color: green; font-weight: 600; }
+    #status.error { color: red; font-weight: 600; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 6px;
+        font-size: 13px;
+    }
+    th {
+        background: #fafafa;
+    }
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="/docs/fpm_logo.jpg" 
+             alt="Logo"
+             style="height:34px; width:auto; border-radius:4px;" />
+
+        <strong>FPM AI Model</strong>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:20px;">
+        <div id="headerUserInfo"></div>
+        <button id="logoutBtn">Logout</button>
+    </div>
+</header>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+    <a href="/index.html">Home</a>
+    <a href="/pages/results.html">Results</a>
+    <a href="/pages/stats.html">Statistics</a>
+    <a href="/pages/weekly.html" class="active">Weekly Games</a>
+    <a href="/pages/about.html">About</a>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+    <h2>Weekly Games</h2>
+
+    <label>Select Date:
+        <select id="dateSelect" multiple size="6" style="min-width:200px;"></select>
+    </label>
+    <button id="selectAllBtn">All</button>
+
+    <div style="margin-top:8px;">
+        <button id="filterBtn">Filter</button>
+        <button id="clearBtn">Clear</button>
+        <button id="exportExcelBtn" style="background:#1a73e8;color:white;">Export Excel</button>
+    </div>
+
+    <div id="status" style="margin-top:10px;"></div>
+
+    <div id="tableWrap" style="margin-top:20px;"></div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>© 2025 FPM Web App</footer>
+
+<script>
+/* =====================================================
+   USER SESSION
+===================================================== */
+const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+
+document.getElementById("headerUserInfo").innerHTML =
+    `User: <strong>${currentUser?.username || ""}</strong>
+     (Type: ${currentUser?.user_type || ""})
+     | <span id="activeTimer">Active: 0m 0s</span>`;
+
+document.getElementById("logoutBtn").onclick = () => {
+    sessionStorage.removeItem("currentUser");
+    sessionStorage.removeItem("activeSeconds");
+    window.location.href = "/index.html";
+};
+
+/* TIMER */
+function startTimer() {
+    let sec = Number(sessionStorage.getItem("activeSeconds") || 0);
+    setInterval(() => {
+        sec++;
+        sessionStorage.setItem("activeSeconds", sec);
+        const m = Math.floor(sec/60);
+        const s = sec % 60;
+        document.getElementById("activeTimer").textContent = `Active: ${m}m ${s}s`;
+    }, 1000);
+}
+startTimer();
+
+/* =====================================================
+   WEEKLY LOGIC
+===================================================== */
+const sheetId = "1c_0Maup2VkR1yg-RjkCbVS1e7d_ng0wgMGY43nFPn3U";
+let fullData = [];
+
+const dateSelect = document.getElementById("dateSelect");
+const tableWrap = document.getElementById("tableWrap");
+const statusDiv = document.getElementById("status");
+
+/* LOAD CUSTOMER DATA */
+(async function loadSheet() {
+    statusDiv.textContent = "Loading...";
+
+    const res = await fetch("/api/load-sheet", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ sheetId, sheetName: "CUSTOMER" })
+    });
+
+    const json = await res.json();
+
+    if (!json.success) {
+        statusDiv.className = "error";
+        statusDiv.textContent = "Cannot load CUSTOMER sheet.";
+        return;
+    }
+
+    fullData = json.data;
+
+    loadDates();
+    renderTable(fullData);
+
+    statusDiv.className = "success";
+    statusDiv.textContent = `Loaded ${fullData.length} rows.`;
+})();
+
+/* DATE LIST */
+function loadDates() {
+    const dates = [...new Set(fullData.map(r => r["MacTarihi"]))];
+    dateSelect.innerHTML = "";
+    dates.forEach(d => {
+        dateSelect.innerHTML += `<option value="${d}">${d}</option>`;
+    });
+}
+
+/* SELECT ALL */
+document.getElementById("selectAllBtn").onclick = () => {
+    [...dateSelect.options].forEach(o => o.selected = true);
+};
+
+/* FILTER */
+document.getElementById("filterBtn").onclick = () => {
+    const selected = [...dateSelect.selectedOptions].map(o => o.value);
+    const filtered = fullData.filter(r => selected.includes(r["MacTarihi"]));
+    renderTable(filtered);
+
+    statusDiv.className = "success";
+    statusDiv.textContent = `${filtered.length} rows found.`;
+};
+
+/* CLEAR */
+document.getElementById("clearBtn").onclick = () => {
+    renderTable(fullData);
+    statusDiv.textContent = "";
+};
+
+/* TABLE RENDER */
+function renderTable(rows) {
+    if (!rows.length) { tableWrap.innerHTML = ""; return; }
+
+    const headers = Object.keys(rows[0]);
+    let html = `<table><thead><tr>`;
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += `</tr></thead><tbody>`;
+
+    rows.forEach(r => {
+        html += `<tr>`;
+        headers.forEach(h => {
+            html += `<td>${r[h] || ""}</td>`;
+        });
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    tableWrap.innerHTML = html;
+}
+
+/* TIMESTAMP */
+function getTimestamp() {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth()+1).padStart(2, '0');
+    const yy = now.getFullYear();
+    const HH = String(now.getHours()).padStart(2, '0');
+    const MM = String(now.getMinutes()).padStart(2, '0');
+    return `${dd}${mm}${yy}${HH}${MM}`;
+}
+
+/* EXCEL EXPORT */
+document.getElementById("exportExcelBtn").onclick = () => {
+    const table = document.querySelector("#tableWrap table");
+
+    if (!table) {
+        statusDiv.className="error";
+        statusDiv.textContent="Nothing to export.";
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, "CUSTOMER");
+
+    const filename = `CUSTOMER_${getTimestamp()}.xlsx`;
+    XLSX.writeFile(wb, filename);
+
+    statusDiv.className="success";
+    statusDiv.textContent=`Exported: ${filename}`;
+};
+
+</script>
+</body>
+</html>

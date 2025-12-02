@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Create Account</title>
+
+<style>
+    body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: linear-gradient(135deg, #eaf3ff, #f4f6f8);
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 40px;
+    }
+
+    #loginLogo {
+        width: 120px;
+        border-radius: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    }
+
+    #box {
+        background: white;
+        padding: 24px 26px;
+        width: 360px;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    input {
+        width: 90%;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1.5px solid #d0d7df;
+        background: #f8fafc;
+        outline: none;
+        font-size: 14px;
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+        transition: 0.2s;
+    }
+
+    input:focus {
+        border-color: #0275d8;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2,117,216,0.12);
+    }
+
+    button {
+        width: 90%;
+        padding: 12px;
+        background: #0275d8;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    button:hover {
+        background: #0267c0;
+    }
+
+    .errorMsg {
+        color: #b30000;
+        font-weight: 600;
+        min-height: 18px;
+    }
+
+    .successMsg {
+        color: #0a7a0a;
+        font-weight: 600;
+        min-height: 18px;
+    }
+
+    a {
+        color: #0275d8;
+        font-size: 14px;
+    }
+</style>
+</head>
+
+<body>
+
+<img id="loginLogo" src="/docs/fpm_logo.jpg">
+
+<div id="box">
+    <h3>Create Account</h3>
+
+    <input id="username" placeholder="Username (min 4 chars)">
+    <input id="password" type="password" placeholder="Password (min 4 chars)">
+    <input id="password2" type="password" placeholder="Repeat Password">
+    <input id="name" placeholder="Name (optional)">
+    <input id="birthyear" placeholder="Birth Year (YYYY)">
+
+    <button onclick="createAccount()">Create Account</button>
+
+    <div id="msg"></div>
+
+    <a href="/pages/login.html">Back to Login</a>
+</div>
+
+<script>
+async function createAccount() {
+    const usernameVal = document.getElementById("username").value.trim();
+    const passwordVal = document.getElementById("password").value.trim();
+    const password2Val = document.getElementById("password2").value.trim();
+    const nameVal = document.getElementById("name").value.trim();
+    const birthyearVal = document.getElementById("birthyear").value.trim();
+    const msg = document.getElementById("msg");
+
+    msg.className = "";
+    msg.textContent = "";
+
+    // === VALIDATION ===
+    if (usernameVal.length < 4) {
+        msg.className = "errorMsg";
+        msg.textContent = "Username must be at least 4 characters.";
+        return;
+    }
+
+    if (passwordVal.length < 4) {
+        msg.className = "errorMsg";
+        msg.textContent = "Password must be at least 4 characters.";
+        return;
+    }
+
+    if (passwordVal !== password2Val) {
+        msg.className = "errorMsg";
+        msg.textContent = "Passwords do not match.";
+        return;
+    }
+
+    if (!birthyearVal || isNaN(birthyearVal)) {
+        msg.className = "errorMsg";
+        msg.textContent = "Birth year is required.";
+        return;
+    }
+
+    const age = new Date().getFullYear() - Number(birthyearVal);
+    if (age < 16) {
+        msg.className = "errorMsg";
+        msg.textContent = "You must be at least 16 years old.";
+        return;
+    }
+
+    // === SEND TO SERVER ===
+    const res = await fetch("/api/create-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            username: usernameVal,
+            password: passwordVal,
+            name: nameVal,
+            birthyear: birthyearVal
+        })
+    });
+
+    const json = await res.json();
+
+    if (!json.success) {
+        msg.className = "errorMsg";
+        msg.textContent = json.error;
+        return;
+    }
+
+    msg.className = "successMsg";
+    msg.textContent = "Account created! Awaiting approval... Redirecting...";
+
+    setTimeout(() => {
+        window.location.href = "/pages/login.html";
+    }, 1500);
+}
+</script>
+
+</body>
+</html>
